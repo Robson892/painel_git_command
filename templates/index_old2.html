@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gerenciador Git Web</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+<div class="container py-4">
+  <h1 class="mb-4">Gerenciador Git Web</h1>
+
+  <!-- Mensagens Flash -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ msg|safe }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Formulário clonar repositório -->
+  <div class="card mb-4">
+    <div class="card-header">Clonar Repositório Git</div>
+    <div class="card-body">
+      <form method="POST" action="/">
+        <div class="mb-3">
+          <label for="repo_url" class="form-label">URL do Repositório</label>
+          <input type="url" class="form-control" id="repo_url" name="repo_url" placeholder="https://github.com/user/repo.git" required />
+        </div>
+        <button type="submit" class="btn btn-primary">Clonar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lista de repositórios -->
+  <h2>Repositórios Clonados</h2>
+  {% if repos %}
+    <ul class="list-group mb-4">
+      {% for repo in repos %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <strong>{{ repo }}</strong>
+          <form method="POST" action="/status" class="m-0">
+            <input type="hidden" name="repo" value="{{ repo }}" />
+            <button type="submit" class="btn btn-outline-info btn-sm">Ver Status</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Nenhum repositório clonado ainda.</p>
+  {% endif %}
+
+  {% if selected_repo %}
+  <!-- Status dos arquivos -->
+  <h3>Status do Repositório: {{ selected_repo }}</h3>
+
+  {% if changed_files %}
+    <h5>Arquivos modificados e não versionados</h5>
+    <form method="POST" action="/commit-status">
+      <input type="hidden" name="repo" value="{{ selected_repo }}" />
+      <ul class="list-group mb-3" style="max-height: 300px; overflow-y: auto;">
+        {% for file in changed_files %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <input type="checkbox" name="files" value="{{ file }}" id="file_{{ loop.index }}" checked />
+              <label for="file_{{ loop.index }}">{{ file }}</label>
+            </div>
+            <small style="white-space: pre-wrap;">{{ previews[file] }}</small>
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="mb-3">
+        <label for="commit_msg" class="form-label">Mensagem do Commit</label>
+        <input type="text" class="form-control" id="commit_msg" name="commit_msg" required />
+      </div>
+      <button type="submit" class="btn btn-success">Fazer Commit e Push</button>
+    </form>
+  {% else %}
+    <p>Não há arquivos modificados ou não versionados.</p>
+  {% endif %}
+
+  {% if deleted_files %}
+    <h5 class="mt-4">Arquivos deletados (não versionados)</h5>
+    <ul class="list-group mb-4">
+      {% for file in deleted_files %}
+        <li class="list-group-item">{{ file }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <!-- Formulário para commit rápido (arquivo único) -->
+  <h3>Commit Rápido - Criar/Editar arquivo</h3>
+  <form method="POST" action="/commit" class="mb-4">
+    <input type="hidden" name="repo" value="{{ selected_repo }}" />
+    <div class="mb-3">
+      <label for="file_name" class="form-label">Nome do Arquivo (ex: pasta/arquivo.txt)</label>
+      <input type="text" class="form-control" id="file_name" name="file_name" required />
+    </div>
+    <div class="mb-3">
+      <label for="file_content" class="form-label">Conteúdo do Arquivo</label>
+      <textarea class="form-control" id="file_content" name="file_content" rows="5" required></textarea>
+    </div>
+    <div class="mb-3">
+      <label for="commit_msg_single" class="form-label">Mensagem do Commit</label>
+      <input type="text" class="form-control" id="commit_msg_single" name="commit_msg" required />
+    </div>
+    <button type="submit" class="btn btn-primary">Salvar e Enviar</button>
+  </form>
+
+  <!-- Gerenciamento de branches -->
+  <h3>Gerenciamento de Branches</h3>
+  <form method="POST" action="/branch/switch" class="row g-3 mb-3">
+    <input type="hidden" name="repo" value="{{ selected_repo }}" />
+    <div class="col-auto">
+      <input type="text" class="form-control" name="target_branch" placeholder="Nome do branch para trocar" required />
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-warning">Trocar Branch</button>
+    </div>
+  </form>
+
+  <form method="POST" action="/branch/create" class="row g-3 mb-3">
+    <input type="hidden" name="repo" value="{{ selected_repo }}" />
+    <div class="col-auto">
+      <input type="text" class="form-control" name="new_branch" placeholder="Nome do novo branch" required />
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-info">Criar Branch</button>
+    </div>
+  </form>
+
+  <form method="POST" action="/branch/merge" class="row g-3 mb-4">
+    <input type="hidden" name="repo" value="{{ selected_repo }}" />
+    <div class="col-auto">
+      <input type="text" class="form-control" name="merge_from" placeholder="Branch para mesclar" required />
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-danger">Mesclar Branch</button>
+    </div>
+  </form>
+
+  <!-- Histórico resumido -->
+  <h3>Histórico resumido</h3>
+  <form method="POST" action="/history" class="mb-4">
+    <input type="hidden" name="repo" value="{{ selected_repo }}" />
+    <button type="submit" class="btn btn-secondary">Ver Histórico Completo</button>
+  </form>
+  {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
